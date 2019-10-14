@@ -1,0 +1,7 @@
+let factorials = [
+  f where f = \n.if n <= 0 then 1 else n * f(n - 1),
+  \n.K({i | i < n}, \i.\x.(i + 1) * x)(1) where K -> c, f.while i in c(i) do {l, r | \x.l(r(x))} on f(i) else \x.x,
+  \n.P({i | i < n}, \i.i + 1) where P -> c, f.while i in c(i) do {l, r | l * r} on f(i) else 1
+]
+
+let main -> f|-5| where f = \x.while i in i < |factorials| do {l, r | null} on println(factorials[i](x))

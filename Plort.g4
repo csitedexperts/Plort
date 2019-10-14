@@ -1,11 +1,11 @@
 grammar Plort;
 
 file : def* EOF ;
-def : LET ID (EQ | ARROW) expr ;
+def : LET varInit (COMMA varInit)* ;
 expr : control
      | expr WHERE varInit (COMMA varInit)*
      ;
-varInit : ID (EQ | ARROW) expr ;
+varInit : ID (EQ expr | ARROW ((params DOT)? expr | nativeRef)) ;
 control : IF expr THEN expr (ELSE expr)?
         | WHILE (ID IN)? expr DO expr ON expr (ELSE expr)?
         | or
@@ -21,7 +21,7 @@ unary : (ADD | SUB | NOT) unary
       ;
 factor : LPAREN expr RPAREN
        | ABS expr ABS
-       | factor (LPAREN (expr (COMMA expr)* COMMA?)? RPAREN funcLit? | funcLit)
+       | factor (LPAREN (expr (COMMA expr)* COMMA?)? RPAREN funcLit? | ABS expr ABS funcLit? | funcLit)
        | factor LBRACK expr RBRACK
        | factor MEMBER (ID | simpleLit)
        | factor ELLIPSIS
@@ -35,10 +35,11 @@ literal : funcLit
         | mapLit
         | simpleLit
         ;
-funcLit : LAMBDA params DOT expr
-        | LBRACE params ABS expr RBRACE
+funcLit : LAMBDA (params DOT expr | nativeRef)
+        | LBRACE (params ABS expr | nativeRef) RBRACE
         ;
 params : (ID (COMMA ID)* (COMMA ELLIPSIS ID)? | ELLIPSIS ID)? COMMA? ;
+nativeRef : NATIVE LPAREN ID (MEMBER ID)* RPAREN ;
 listLit : LBRACK (expr (COMMA expr)* COMMA?)? RBRACK ;
 mapLit : LBRACE (member (COMMA member)* COMMA?)? RBRACE ;
 member : (ID | simpleLit | LBRACK expr RBRACK) MEMBER expr
@@ -62,6 +63,7 @@ DO : 'do' ;
 OR : 'or' ;
 AND : 'and' ;
 NOT : 'not' ;
+NATIVE : 'native' ;
 
 ARROW : '->' ;
 ELLIPSIS : '...' ;

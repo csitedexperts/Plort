@@ -1,0 +1,3 @@
+let print -> native(plort:lang:print)
+
+let println -> native(plort:lang:println)

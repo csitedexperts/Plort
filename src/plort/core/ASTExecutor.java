@@ -3,7 +3,6 @@ package plort.core;
 import plort.core.ast.*;
 import plort.core.value.*;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,7 +17,7 @@ import static plort.core.value.Value.when;
 
 public final class ASTExecutor implements ASTVisitor<Value> {
   
-  private Scope scope = Scope.global();
+  private Scope scope = Scope.empty();
   
   public Scoper childScope(Map<String, Value> scope) {
     this.scope = Scope.of(this.scope, scope);
@@ -44,7 +43,7 @@ public final class ASTExecutor implements ASTVisitor<Value> {
   @Override
   public Value visit(VarDefsNode node) {
     var defs = new HashMap<String, Value>();
-    var rawDefs = node.defs().stream().collect(toMap(VarDefBlob::name, VarDefBlob::value));
+    var rawDefs = node.defs().stream().collect(toMap(VarDefBlob::name, VarDefBlob::value, (l, r) -> new PlortException("can't override variables of the same scope").throwExpr()));
     for (var key : rawDefs.keySet()) defs.put(key, NullValue.INSTANCE);
     try (var defScope = childScope(defs)) {
       for (var entry : rawDefs.entrySet()) scope.set(entry.getKey(), entry.getValue().accept(this));
@@ -135,6 +134,11 @@ public final class ASTExecutor implements ASTVisitor<Value> {
   @Override
   public FuncValue visit(FuncNode node) {
     return FuncValue.definedFunc(scope, node.params().names(), node.params().varargs(), node.body());
+  }
+  
+  @Override
+  public FuncValue visit(NativeFuncNode node) {
+    return NativeFuncRegistry.get(NativeFuncRegistry.id(node.nativeRef())).orElseThrow(() -> new PlortException("no such native function: " + String.join(":", node.nativeRef())));
   }
   
   @Override

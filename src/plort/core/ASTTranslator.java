@@ -1,12 +1,15 @@
 package plort.core;
 
+import org.antlr.v4.runtime.tree.TerminalNode;
 import plort.core.ast.*;
 import plort.gen.PlortBaseVisitor;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
+import static java.util.stream.Collectors.toList;
 import static plort.gen.PlortParser.*;
 
 public class ASTTranslator extends PlortBaseVisitor<AST> {
@@ -14,15 +17,14 @@ public class ASTTranslator extends PlortBaseVisitor<AST> {
   @Override
   public VarDefsNode visitFile(FileContext ctx) {
     var defs = new ArrayList<VarDefBlob>();
-    for (var def : ctx.def()) defs.add((VarDefBlob) def.accept(this));
-    return new VarDefsNode(defs, new FuncCallNode(new VarNode("main"), List.of()));
+    for (var def : ctx.def()) defs.addAll(((VarDefsNode) def.accept(this)).defs());
+    return new VarDefsNode(defs, NullNode.INSTANCE);
   }
   
-  @Override
-  public VarDefBlob visitDef(DefContext ctx) {
-    var value = (AST.Node) ctx.expr().accept(this);
-    if (ctx.ARROW() != null) value = new FuncNode(new ParamsBlob(List.of(), false), value);
-    return new VarDefBlob(ctx.ID().getText(), value);
+  public VarDefsNode visitDef(DefContext ctx) {
+    var defs = new ArrayList<VarDefBlob>();
+    for (var def : ctx.varInit()) defs.add((VarDefBlob) def.accept(this));
+    return new VarDefsNode(defs, NullNode.INSTANCE);
   }
   
   @Override
@@ -36,9 +38,18 @@ public class ASTTranslator extends PlortBaseVisitor<AST> {
   
   @Override
   public VarDefBlob visitVarInit(VarInitContext ctx) {
-    //return new VarDefBlob(ctx.ID().getText(), (AST.Node) ctx.expr().accept(this));
-    var value = (AST.Node) ctx.expr().accept(this);
-    if (ctx.ARROW() != null) value = new FuncNode(new ParamsBlob(List.of(), false), value);
+    AST.Node value;
+    if (ctx.ARROW() != null) {
+      var nativeRef = ctx.nativeRef();
+      if (nativeRef != null) {
+        value = (AST.Node) nativeRef.accept(this);
+      } else {
+        var params = ctx.params();
+        value = new FuncNode(params == null ? new ParamsBlob(List.of(), false) : (ParamsBlob) params.accept(this), (AST.Node) ctx.expr().accept(this));
+      }
+    } else {
+      value = (AST.Node) ctx.expr().accept(this);
+    }
     return new VarDefBlob(ctx.ID().getText(), value);
   }
   
@@ -136,7 +147,8 @@ public class ASTTranslator extends PlortBaseVisitor<AST> {
       }
       if (ctx.LBRACK() != null) return new MemberAccessNode((AST.Node) factor.accept(this), (AST.Node) ctx.expr(0).accept(this));
       var args = new ArrayList<AST.Node>();
-      for (var expr : ctx.expr()) args.add((AST.Node) expr.accept(this));
+      if (!ctx.ABS().isEmpty()) args.add(new UnOpNode((AST.Node) ctx.expr(0).accept(this), UnOpBlob.ABS));
+      else for (var expr : ctx.expr()) args.add((AST.Node) expr.accept(this));
       var funcLit = ctx.funcLit();
       if (funcLit != null) args.add((AST.Node) funcLit.accept(this));
       return new FuncCallNode((AST.Node) factor.accept(this), args);
@@ -168,7 +180,8 @@ public class ASTTranslator extends PlortBaseVisitor<AST> {
   
   @Override
   public AST.Node visitFuncLit(FuncLitContext ctx) {
-    return new FuncNode((ParamsBlob) ctx.params().accept(this), (AST.Node) ctx.expr().accept(this));
+    var nativeRef = ctx.nativeRef();
+    return nativeRef != null ? (AST.Node) nativeRef.accept(this) : new FuncNode((ParamsBlob) ctx.params().accept(this), (AST.Node) ctx.expr().accept(this));
   }
   
   @Override
@@ -176,6 +189,11 @@ public class ASTTranslator extends PlortBaseVisitor<AST> {
     var names = new ArrayList<String>();
     for (var ID : ctx.ID()) names.add(ID.getText());
     return new ParamsBlob(names, ctx.ELLIPSIS() != null);
+  }
+  
+  @Override
+  public NativeFuncNode visitNativeRef(NativeRefContext ctx) {
+    return new NativeFuncNode(ctx.ID().stream().map(TerminalNode::getText).collect(toList()));
   }
   
   @Override

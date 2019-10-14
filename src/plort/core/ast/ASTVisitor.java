@@ -22,6 +22,8 @@ public interface ASTVisitor<R> {
   
   R visit(FuncNode node);
   
+  R visit(NativeFuncNode node);
+  
   R visit(MapNode node);
   
   R visit(ListNode node);

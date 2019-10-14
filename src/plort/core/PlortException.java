@@ -1,7 +1,5 @@
 package plort.core;
 
-import java.util.function.Supplier;
-
 public class PlortException extends RuntimeException {
   
   public PlortException() {
@@ -20,6 +18,8 @@ public class PlortException extends RuntimeException {
     super(cause);
   }
   
+  // this method can be called in any expression and should infer a suitable return type;
+  // it effectively enables throw statements to be used as expressions, as in languages like C# and Kotlin
   public <R> R throwExpr() {
     throw this;
   }

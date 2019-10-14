@@ -17,6 +17,10 @@ public final class Scope {
     this.defs = defs;
   }
   
+  public static Scope empty() {
+    return new Scope(null, Map.of());
+  }
+  
   public static Scope of(Scope parent, Map<String, Value> defs) {
     if (defs == null || defs.isEmpty()) throw new IllegalArgumentException();
     return new Scope(parent, new HashMap<>(defs));
@@ -47,21 +51,6 @@ public final class Scope {
   public static Def def(String name, Value value) {
     if (name == null || value == null) throw new NullPointerException();
     return new Def(name, value);
-  }
-  
-  public static Scope global() {
-    return Scope.of(
-      def("print", FuncValue.nativeFunc(1, false, args -> {
-        var value = args.get(0);
-        System.out.print(value.stringValue());
-        return value;
-      })),
-      def("println", FuncValue.nativeFunc(1, false, args -> {
-        var value = args.get(0);
-        System.out.println(value.stringValue());
-        return value;
-      }))
-    );
   }
   
   public Optional<Value> get(String name) {
